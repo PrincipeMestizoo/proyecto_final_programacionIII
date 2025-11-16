@@ -1,9 +1,9 @@
-Code.require_file("./team_manager.exs")
-Code.require_file("./project_manager.exs")
-Code.require_file("./mentor_manager.exs")
-Code.require_file("./chat_pubsub.exs")
-Code.require_file("./chat_room.exs")
-Code.require_file("./persistence_ets.exs")
+Code.require_file(Path.expand("./team_manager.exs"))
+Code.require_file(Path.expand("./project_manager.exs"))
+Code.require_file(Path.expand("./mentor_manager.exs"))
+Code.require_file(Path.expand("./chat_pubsub.exs"))
+Code.require_file(Path.expand("./chat_room.exs"))
+Code.require_file(Path.expand("./persistence_ets.exs"))
 
 defmodule AppSupervisor do
   use Supervisor
