@@ -45,14 +45,30 @@ defmodule Menu do
       |> String.trim()
 
     case opcion do
-      "1" -> crear_equipo()
-      "2" -> listar_equipos()
-      "3" -> add_miembro()
-      "4" -> crear_proyecto()
-      "5" -> listar_proyectos()
-      "6" -> enviar_msg()
-      "7" -> ver_msg()
-      "0" -> salir()
+      "1" ->
+        crear_equipo()
+
+      "2" ->
+        listar_equipos()
+
+      "3" ->
+        add_miembro()
+
+      "4" ->
+        crear_proyecto()
+
+      "5" ->
+        listar_proyectos()
+
+      "6" ->
+        enviar_msg()
+
+      "7" ->
+        ver_msg()
+
+      "0" ->
+        salir()
+
       _ ->
         IO.puts("Opción inválida.")
         loop()
@@ -106,9 +122,10 @@ defmodule Menu do
   defp enviar_msg do
     sala = IO.gets("Sala: ") |> String.trim()
     user = IO.gets("Usuario: ") |> String.trim()
-    msg  = IO.gets("Mensaje: ") |> String.trim()
+    msg = IO.gets("Mensaje: ") |> String.trim()
 
-    ChatRoom.start_link(sala)  # si ya existe, no pasa nada
+    # si ya existe, no pasa nada
+    ChatRoom.start_link(sala)
 
     ChatRoom.send_msg(sala, user, msg)
 
