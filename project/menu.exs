@@ -30,6 +30,11 @@ defmodule Menu do
 
             MENÚ PRINCIPAL
 
+    ---Equipos---
+    1. Crear equipo
+    2. Listar equipos
+    3. Añadir miembro al equipo
+
     ---Proyectos---
     4. Crear proyecto completo
     5. Listar proyectos
