@@ -5,7 +5,7 @@ defmodule MentorManager do
   use GenServer
 
   # Inicia el GenServer que manejará el registro de mentores y su retroalimentación.
-  def start_link(_), do: GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
+  def start_link(_), do: GenServer.start_link(__MODULE__, %{}, name: {:global, __MODULE__})
 
   # Estado inicial vacío; se usa únicamente como base para el GenServer.
   def init(state), do: {:ok, state}

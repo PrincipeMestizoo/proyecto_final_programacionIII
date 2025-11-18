@@ -5,7 +5,7 @@ defmodule ProjectManager do
   use GenServer
 
   # Inicia el GenServer que administra proyectos.
-  def start_link(_), do: GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
+  def start_link(_), do: GenServer.start_link(__MODULE__, %{}, name: {:global, __MODULE__})
 
   # Estado inicial vacío; se almacena información únicamente en ETS.
   def init(state), do: {:ok, state}

@@ -5,7 +5,7 @@ defmodule ChatPubSub do
   # El registry permite que cada sala tenga una lista de procesos suscritos.
   def start_link(_) do
     Registry.start_link(keys: :unique, name: ChatRegistry)
-    GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
+    GenServer.start_link(__MODULE__, %{}, name: {:global, __MODULE__})
   end
 
   # Estado inicial vacío; no se utiliza, pero es necesario para el GenServer.

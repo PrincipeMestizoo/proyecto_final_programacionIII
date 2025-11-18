@@ -5,7 +5,7 @@ defmodule TeamManager do
   use GenServer
 
   # Inicia el GenServer encargado de manejar la gestión de equipos.
-  def start_link(_), do: GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
+  def start_link(_), do: GenServer.start_link(__MODULE__, %{}, name: {:global, __MODULE__})
 
   # Estado inicial vacío; todos los datos se almacenan en ETS.
   def init(state), do: {:ok, state}

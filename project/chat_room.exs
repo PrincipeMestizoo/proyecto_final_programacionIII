@@ -7,7 +7,7 @@ defmodule ChatRoom do
 
   # Inicia una sala de chat usando un nombre único manejado por Registry.
   # via_tuple(room) asegura que solo exista un proceso por sala.
-  def start_link(room), do: GenServer.start_link(__MODULE__, room, name: via_tuple(room))
+  def start_link(room), do: GenServer.start_link(__MODULE__, room, name: {:global, {:_chat_room, room}})
 
   # Genera la tupla utilizada por Registry para identificar la sala.
   def via_tuple(room), do: {:via, Registry, {ChatRegistry, room}}
