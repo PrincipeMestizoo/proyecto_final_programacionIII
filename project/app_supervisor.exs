@@ -1,33 +1,46 @@
-# Carga de los módulos del sistema: equipos, proyectos, mentores, chat y persistencia ETS.
-Code.require_file(Path.expand("./team_manager.exs"))
-Code.require_file(Path.expand("./project_manager.exs"))
-Code.require_file(Path.expand("./mentor_manager.exs"))
-Code.require_file(Path.expand("./chat_pubsub.exs"))
-Code.require_file(Path.expand("./chat_room.exs"))
-Code.require_file(Path.expand("./persistence_ets.exs"))
+# ====================================================================
+# CARGA DE MÓDULOS DEL SISTEMA (equipos, proyectos, mentores, chat…)
+# ====================================================================
+
+Code.require_file("persistence_ets.exs")
+Code.require_file("team_manager.exs")
+Code.require_file("project_manager.exs")
+Code.require_file("mentor_manager.exs")
+Code.require_file("chat_pubsub.exs")
+Code.require_file("chat_room.exs")
+
+# ====================================================================
+# SUPERVISOR PRINCIPAL
+# ====================================================================
 
 defmodule AppSupervisor do
   use Supervisor
 
-  # Inicia el supervisor principal y lo registra con un nombre global.
   def start_link(_) do
-    Supervisor.start_link(__MODULE__, :ok, name: __MODULE__)
+    Supervisor.start_link(__MODULE__, :ok, name: {:global, AppSupervisor})
   end
 
-  # Configura los procesos del sistema.
-  # Incluye los manejadores de equipos, proyectos, mentores y chat.
-  # Estrategia :one_for_one: si un proceso falla, solo ese proceso se reinicia.
   def init(:ok) do
     children = [
-      {TeamManager, []},
-      {ProjectManager, []},
-      {ChatPubSub, []},
-      {MentorManager, []}
+      %{id: TeamManager,    start: {TeamManager, :start_link, [[]]}},
+      %{id: ProjectManager, start: {ProjectManager, :start_link, [[]]}},
+      %{id: ChatPubSub,     start: {ChatPubSub, :start_link, [[]]}},
+      %{id: MentorManager,  start: {MentorManager, :start_link, [[]]}}
     ]
 
     Supervisor.init(children, strategy: :one_for_one)
   end
 end
 
-# Arranque automático del supervisor al cargar este archivo.
-{:ok, _} = AppSupervisor.start_link(nil)
+# ====================================================================
+# ARRANQUE AUTOMÁTICO SOLO SI NO EXISTE OTRO SUPERVISOR GLOBAL
+# ====================================================================
+
+case :global.whereis_name(AppSupervisor) do
+  :undefined ->
+    IO.puts("\n>>> Arrancando supervisor principal en este nodo…\n")
+    {:ok, _} = AppSupervisor.start_link(nil)
+
+  pid when is_pid(pid) ->
+    IO.puts("\n>>> Supervisor ya está corriendo en otro nodo: #{inspect(pid)}\n")
+end
