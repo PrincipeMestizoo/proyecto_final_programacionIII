@@ -3,9 +3,15 @@ defmodule ChatPubSub do
 
   # Inicia Registry y GenServer global
   def start_link(_) do
-    Registry.start_link(keys: :unique, name: ChatRegistry)
+    # Solo crea el Registry si no existe
+    case Process.whereis(ChatRegistry) do
+      nil -> Registry.start_link(keys: :unique, name: ChatRegistry)
+      _ -> :ok
+    end
+
     GenServer.start_link(__MODULE__, %{}, name: {:global, __MODULE__})
   end
+
 
   def init(state), do: {:ok, state}
 
