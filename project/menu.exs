@@ -4,35 +4,37 @@ Code.require_file("mentor_manager.exs")
 Code.require_file("chat_pubsub.exs")
 Code.require_file("chat_room.exs")
 Code.require_file("persistence_ets.exs")
+Code.require_file("app_supervisor.exs") # Aseguramos supervisor disponible
 
-
-# arranque
-
+# =========================================================
+# ARRANQUE AUTOMÁTICO
+# =========================================================
 defmodule AutoStart do
   def ensure_supervisor_running do
-    tm = Process.whereis(TeamManager)
-    pm = Process.whereis(ProjectManager)
-    mm = Process.whereis(MentorManager)
-    pub = Process.whereis(ChatPubSub)
+    # Verifica si los GenServers globales ya existen
+    tm = :global.whereis_name(TeamManager)
+    pm = :global.whereis_name(ProjectManager)
+    mm = :global.whereis_name(MentorManager)
+    pub = :global.whereis_name(ChatPubSub)
 
-    if tm == nil or pm == nil or mm == nil or pub == nil do
+    # Si alguno no existe, arranca el supervisor global
+    if tm == :undefined or pm == :undefined or mm == :undefined or pub == :undefined do
       IO.puts("\n>>> No hay supervisor activo. Arrancando AppSupervisor...\n")
-      Code.require_file("app_supervisor.exs")
+      {:ok, _} = AppSupervisor.start_link(nil)
     else
       :ok
     end
   end
 end
 
-# menu para las funcionalidades
-
+# =========================================================
+# MENÚ PRINCIPAL
+# =========================================================
 defmodule Menu do
   def start do
     AutoStart.ensure_supervisor_running()
     loop()
   end
-
-
 
   defp loop do
     IO.puts("""
@@ -72,11 +74,9 @@ defmodule Menu do
       "5" -> listar_proyectos()
       "6" -> enviar_msg()
       "7" -> ver_msg()
-
       "8" -> registrar_mentor()
       "9" -> enviar_feedback()
       "10" -> ver_feedback()
-
       "0" -> salir()
       _ ->
         IO.puts("Opción inválida.")
@@ -84,17 +84,21 @@ defmodule Menu do
     end
   end
 
-  # equipos
+  # =====================================================
+  # EQUIPOS
+  # =====================================================
   defp crear_equipo do
     id = IO.gets("ID del equipo: ") |> String.trim()
     nombre = IO.gets("Nombre del equipo: ") |> String.trim()
-    TeamManager.create_team(id, %{name: nombre})
+    # Llamada global segura
+    GenServer.call({:global, TeamManager}, {:create, id, %{name: nombre}})
     IO.puts("Equipo creado correctamente!")
     loop()
   end
 
   defp listar_equipos do
-    IO.inspect(TeamManager.list_teams(), label: "Equipos registrados")
+    res = GenServer.call({:global, TeamManager}, :list)
+    IO.inspect(res, label: "Equipos registrados")
     loop()
   end
 
@@ -102,55 +106,66 @@ defmodule Menu do
     id = IO.gets("ID equipo: ") |> String.trim()
     uid = IO.gets("ID usuario: ") |> String.trim()
     nombre = IO.gets("Nombre usuario: ") |> String.trim()
-    TeamManager.add_member(id, %{id: uid, name: nombre})
+    GenServer.call({:global, TeamManager}, {:add_member, id, %{id: uid, name: nombre}})
     IO.puts("Miembro añadido!")
     loop()
   end
 
-  # proyectos
+  # =====================================================
+  # PROYECTOS
+  # =====================================================
   defp crear_proyecto do
     tid = IO.gets("ID equipo dueño: ") |> String.trim()
     pid = IO.gets("ID proyecto: ") |> String.trim()
     titulo = IO.gets("Título del proyecto: ") |> String.trim()
     desc = IO.gets("Descripción: ") |> String.trim()
     cat = IO.gets("Categoría: ") |> String.trim()
-
-    ProjectManager.create_project(tid, pid, titulo, desc, cat)
+    GenServer.call({:global, ProjectManager}, {:create, tid, pid, titulo, desc, cat, :os.system_time(:second)})
     IO.puts("Proyecto creado!")
     loop()
   end
 
   defp listar_proyectos do
-    IO.inspect(ProjectManager.list_projects(), label: "Proyectos")
+    res = GenServer.call({:global, ProjectManager}, :list)
+    IO.inspect(res, label: "Proyectos")
     loop()
   end
 
-  # mensajeria
+  # =====================================================
+  # CHAT
+  # =====================================================
   defp enviar_msg do
     sala = IO.gets("Sala: ") |> String.trim()
     user = IO.gets("Usuario: ") |> String.trim()
     msg  = IO.gets("Mensaje: ") |> String.trim()
 
-    ChatRoom.start_link(sala)
-    ChatRoom.send_msg(sala, user, msg)
+    # Intento de iniciar la sala, si ya existe ignoramos error
+    case ChatRoom.start_link(sala) do
+      {:ok, _pid} -> :ok
+      {:error, {:already_started, _pid}} -> :ok
+      _ -> IO.puts("Error al iniciar la sala")
+    end
 
+    ChatRoom.send_msg(sala, user, msg)
     IO.puts("Mensaje enviado!")
     loop()
   end
 
   defp ver_msg do
     sala = IO.gets("Sala: ") |> String.trim()
-    IO.inspect(PersistenceETS.get_messages(sala), label: "Mensajes en sala")
+    msgs = PersistenceETS.get_messages(sala)
+    IO.inspect(msgs, label: "Mensajes en sala")
     loop()
   end
 
-  # mentores
+  # =====================================================
+  # MENTORIA
+  # =====================================================
   defp registrar_mentor do
     id = IO.gets("ID del mentor: ") |> String.trim()
     nombre = IO.gets("Nombre del mentor: ") |> String.trim()
     area = IO.gets("Área o especialidad: ") |> String.trim()
-
-    MentorManager.register_mentor(id, %{name: nombre, area: area})
+    GenServer.call({:global, MentorManager}, {:create, id, %{name: nombre, area: area}})
     IO.puts("Mentor registrado correctamente!")
     loop()
   end
@@ -159,19 +174,21 @@ defmodule Menu do
     proj = IO.gets("ID del proyecto: ") |> String.trim()
     ment = IO.gets("ID del mentor: ") |> String.trim()
     fb   = IO.gets("Retroalimentación: ") |> String.trim()
-
-    MentorManager.give_feedback(proj, ment, fb)
+    GenServer.call({:global, MentorManager}, {:fb, proj, ment, fb})
     IO.puts("Feedback enviado!")
     loop()
   end
 
   defp ver_feedback do
     proj = IO.gets("ID del proyecto: ") |> String.trim()
-    IO.inspect(MentorManager.get_feedback(proj), label: "Feedback del proyecto")
+    feedback = GenServer.call({:global, MentorManager}, {:get_fb, proj})
+    IO.inspect(feedback, label: "Feedback del proyecto")
     loop()
   end
 
-  # salida
+  # =====================================================
+  # SALIDA
+  # =====================================================
   defp salir do
     IO.puts("Saliendo del sistema… Adiós!")
     System.halt(0)
