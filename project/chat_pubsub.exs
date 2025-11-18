@@ -1,30 +1,26 @@
 defmodule ChatPubSub do
   use GenServer
 
-  # Inicia Registry y GenServer global
+  # Inicia el GenServer global
   def start_link(_) do
-    # Solo crea el Registry si no existe
-    case Process.whereis(ChatRegistry) do
-      nil -> Registry.start_link(keys: :unique, name: ChatRegistry)
-      _ -> :ok
-    end
-
     GenServer.start_link(__MODULE__, %{}, name: {:global, __MODULE__})
   end
 
-
   def init(state), do: {:ok, state}
 
-  # Suscribe un proceso a una sala
-  def subscribe(room, _pid) do
-    Registry.register(ChatRegistry, room, [])
+  # Suscribe un proceso a una sala de chat global
+  def subscribe(room, pid \\ self()) do
+    :ok = :pg.join(room, pid)   # Une el PID al grupo de la sala
     :ok
   end
 
-  # Envía un mensaje a todos los suscritos y lo guarda en ETS
+  # Envía un mensaje a todos los procesos suscritos globalmente
   def broadcast(room, msg) do
     PersistenceETS.add_message(room, msg)
-    for {pid, _} <- Registry.lookup(ChatRegistry, room), do: send(pid, {:chat, room, msg})
+
+    # Obtiene todos los miembros del grupo distribuido y envía el mensaje
+    for pid <- :pg.get_members(room), do: send(pid, {:chat, room, msg})
+
     :ok
   end
 end
