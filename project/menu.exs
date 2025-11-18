@@ -1,17 +1,25 @@
-# Arranque
+Code.require_file("team_manager.exs")
+Code.require_file("project_manager.exs")
+Code.require_file("mentor_manager.exs")
+Code.require_file("chat_pubsub.exs")
+Code.require_file("chat_room.exs")
+Code.require_file("persistence_ets.exs")
+
+
+# arranque
+
 defmodule AutoStart do
   def ensure_supervisor_running do
-    need =
-      [
-        Process.whereis(TeamManager),
-        Process.whereis(ProjectManager),
-        Process.whereis(MentorManager),
-        Process.whereis(ChatPubSub)
-      ]
+    tm = Process.whereis(TeamManager)
+    pm = Process.whereis(ProjectManager)
+    mm = Process.whereis(MentorManager)
+    pub = Process.whereis(ChatPubSub)
 
-    if Enum.any?(need, &(&1 == nil)) do
+    if tm == nil or pm == nil or mm == nil or pub == nil do
       IO.puts("\n>>> No hay supervisor activo. Arrancando AppSupervisor...\n")
       Code.require_file("app_supervisor.exs")
+    else
+      :ok
     end
   end
 end
@@ -26,8 +34,7 @@ defmodule Menu do
 
   defp loop do
     IO.puts("""
-    ============================
-
+    -----------------------------
             MENÚ PRINCIPAL
 
     ---Equipos---
@@ -38,21 +45,22 @@ defmodule Menu do
     ---Proyectos---
     4. Crear proyecto completo
     5. Listar proyectos
-    6. Actualizar avance
-    7. Proyectos por categoría
-    8. Proyectos por equipo
-    9. Ver proyecto por ID
+    6. Enviar mensaje a sala
+    7. Ver mensajes de una sala
 
-    ---Mensajeria---
-    10. Enviar mensaje
-    11. Ver mensajes
+    ---Mentoria---
+    8. Registrar mentor
+    9. Enviar feedback de mentor
+    10. Ver feedback de un proyecto
 
     0. Salir
 
-    ============================
+    -----------------------------
     """)
 
-    opcion = IO.gets("Opción: ") |> String.trim()
+    opcion =
+      IO.gets("Seleccione una opción: ")
+      |> String.trim()
 
     case opcion do
       "1" -> crear_equipo()
@@ -60,12 +68,13 @@ defmodule Menu do
       "3" -> add_miembro()
       "4" -> crear_proyecto()
       "5" -> listar_proyectos()
-      "6" -> actualizar_avance()
-      "7" -> proyectos_categoria()
-      "8" -> proyectos_equipo()
-      "9" -> proyecto_id()
-      "10" -> enviar_mensaje()
-      "11" -> ver_mensajes()
+      "6" -> enviar_msg()
+      "7" -> ver_msg()
+
+      "8" -> registrar_mentor()
+      "9" -> enviar_feedback()
+      "10" -> ver_feedback()
+
       "0" -> salir()
       _ ->
         IO.puts("Opción inválida.")
@@ -74,13 +83,11 @@ defmodule Menu do
   end
 
   # equipos
-
   defp crear_equipo do
     id = IO.gets("ID del equipo: ") |> String.trim()
     nombre = IO.gets("Nombre del equipo: ") |> String.trim()
-
     TeamManager.create_team(id, %{name: nombre})
-    IO.puts("Equipo creado!")
+    IO.puts("Equipo creado correctamente!")
     loop()
   end
 
@@ -90,65 +97,35 @@ defmodule Menu do
   end
 
   defp add_miembro do
-    tid = IO.gets("ID equipo: ") |> String.trim()
+    id = IO.gets("ID equipo: ") |> String.trim()
     uid = IO.gets("ID usuario: ") |> String.trim()
-    name = IO.gets("Nombre usuario: ") |> String.trim()
-
-    TeamManager.add_member(tid, %{id: uid, name: name})
+    nombre = IO.gets("Nombre usuario: ") |> String.trim()
+    TeamManager.add_member(id, %{id: uid, name: nombre})
     IO.puts("Miembro añadido!")
     loop()
   end
 
   # proyectos
-
   defp crear_proyecto do
-    tid = IO.gets("ID del equipo dueño: ") |> String.trim()
-    pid = IO.gets("ID del proyecto: ") |> String.trim()
-    title = IO.gets("Título del proyecto: ") |> String.trim()
+    tid = IO.gets("ID equipo dueño: ") |> String.trim()
+    pid = IO.gets("ID proyecto: ") |> String.trim()
+    titulo = IO.gets("Título del proyecto: ") |> String.trim()
     desc = IO.gets("Descripción: ") |> String.trim()
-    cat  = IO.gets("Categoría: ") |> String.trim()
+    cat = IO.gets("Categoría: ") |> String.trim()
 
-    ProjectManager.create_project(tid, pid, title, desc, cat)
+    ProjectManager.create_project(tid, pid, titulo, desc, cat)
     IO.puts("Proyecto creado!")
     loop()
   end
 
   defp listar_proyectos do
-    IO.inspect(ProjectManager.list_projects(), label: "Proyectos registrados")
-    loop()
-  end
-
-  defp actualizar_avance do
-    pid = IO.gets("ID del proyecto: ") |> String.trim()
-    msg = IO.gets("Mensaje de avance: ") |> String.trim()
-
-    ProjectManager.add_update(pid, msg)
-    IO.puts("Avance registrado!")
-    loop()
-  end
-
-  defp proyectos_categoria do
-    cat = IO.gets("Categoría: ") |> String.trim()
-    IO.inspect(ProjectManager.by_category(cat), label: "Proyectos en categoría")
-    loop()
-  end
-
-  defp proyectos_equipo do
-    tid = IO.gets("ID del equipo: ") |> String.trim()
-    IO.inspect(ProjectManager.by_team(tid), label: "Proyectos del equipo")
-    loop()
-  end
-
-  defp proyecto_id do
-    pid = IO.gets("ID del proyecto: ") |> String.trim()
-    IO.inspect(ProjectManager.get_project(pid), label: "Proyecto encontrado")
+    IO.inspect(ProjectManager.list_projects(), label: "Proyectos")
     loop()
   end
 
   # mensajeria
-
-  defp enviar_mensaje do
-    sala = IO.gets("Sala (general/team_x/sala_tema): ") |> String.trim()
+  defp enviar_msg do
+    sala = IO.gets("Sala: ") |> String.trim()
     user = IO.gets("Usuario: ") |> String.trim()
     msg  = IO.gets("Mensaje: ") |> String.trim()
 
@@ -159,15 +136,42 @@ defmodule Menu do
     loop()
   end
 
-  defp ver_mensajes do
+  defp ver_msg do
     sala = IO.gets("Sala: ") |> String.trim()
     IO.inspect(PersistenceETS.get_messages(sala), label: "Mensajes en sala")
     loop()
   end
 
-#salida
+  # mentores
+  defp registrar_mentor do
+    id = IO.gets("ID del mentor: ") |> String.trim()
+    nombre = IO.gets("Nombre del mentor: ") |> String.trim()
+    area = IO.gets("Área o especialidad: ") |> String.trim()
+
+    MentorManager.register_mentor(id, %{name: nombre, area: area})
+    IO.puts("Mentor registrado correctamente!")
+    loop()
+  end
+
+  defp enviar_feedback do
+    proj = IO.gets("ID del proyecto: ") |> String.trim()
+    ment = IO.gets("ID del mentor: ") |> String.trim()
+    fb   = IO.gets("Retroalimentación: ") |> String.trim()
+
+    MentorManager.give_feedback(proj, ment, fb)
+    IO.puts("Feedback enviado!")
+    loop()
+  end
+
+  defp ver_feedback do
+    proj = IO.gets("ID del proyecto: ") |> String.trim()
+    IO.inspect(MentorManager.get_feedback(proj), label: "Feedback del proyecto")
+    loop()
+  end
+
+  # salida
   defp salir do
-    IO.puts("Saliendo del sistema... ")
+    IO.puts("Saliendo del sistema… Adiós!")
     System.halt(0)
   end
 end
