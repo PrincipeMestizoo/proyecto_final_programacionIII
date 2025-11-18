@@ -28,9 +28,14 @@ end
 
 defmodule Menu do
   def start do
-    AutoStart.ensure_supervisor_running()
+    # SOLO el nodo maestro debe iniciar el supervisor
+    if Node.self() == :fed@lenovo-fedora-daniel do
+      AutoStart.ensure_supervisor_running()
+    end
+
     loop()
   end
+
 
   defp loop do
     IO.puts("""
