@@ -1,1 +1,2 @@
-project/erl_crash.dump
+*.dump
+erl_crash.dump*
