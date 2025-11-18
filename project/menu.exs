@@ -180,5 +180,3 @@ defmodule Menu do
     System.halt(0)
   end
 end
-
-Menu.start()
